@@ -1,0 +1,235 @@
+<html>
+
+<head>
+    <style>
+        .serie{
+            position: relative;
+            float: left;
+            width: 150px;
+            border:black solid 1px;
+            margin:5px;
+
+        }
+        .nombreSerie{
+           font-weight: bold;
+           text-align: center;
+        }
+        .temporada{
+            position: relative;
+            float: left;
+            font-size: 300%;
+            width: 30px;
+        }
+        .subEsp{
+            position: relative;
+            float: left;
+            color:blueviolet;
+            width: 70px;
+            background-image: url("subEsp.png");
+            background-repeat: no-repeat;
+            background-position: 10px;
+            background-size: 15px;
+
+        
+        }
+        .castellano{
+            position: relative;
+            float: left;
+            color:rebeccapurple;
+            width: 70px;
+            background-image: url("esp.png");
+            background-repeat: no-repeat;
+            background-position: 10px;
+            background-size: 15px;
+
+        }
+    </style>
+    <script>
+        const URL = "https://pelisplus.icu/ver/";
+        const SERIE_LA_MATERIA_OSCURA = "la-materia-oscura";
+        const TEMPORADA = "-temporada-";
+        const CAPITULO = "-capitulo-";
+        const ID_CAS= "level2_castell";
+        const ID_LATINO = "level1_latino";
+        const ID_SUB="level1_castellano";
+
+        const NOT_FOUND = "404";
+        const SUB = "subEsp";
+        const CAS = "castellano";
+        const LATINO = "latino";
+
+
+        var series = [];
+
+        var dicTemporada = {};
+        var dicCapituloSub = {};
+        var dicCapituloCas = {};
+
+
+
+        function updatesSeries(metodo) {
+            var promises = [];
+            for (var i = 0; i < series.length; i++) {
+                promises.push(metodo(series[i]).then(updateDivSerie));
+            }
+            return Promise.all(promises);
+        }
+        function updateTempSerie(serie) {
+            console.log("update temporada serie " + serie);
+            return new Promise((resolve, error) => {
+
+                check(serie, dicTemporada[serie] + 1, 1).then((r) => {
+                    var response = "";
+                    if (r != NOT_FOUND) {
+                        console.log("updating temporada serie " + serie);
+                        dicTemporada[serie]++;
+                        updateTempSerie(serie).then(() => resolve(serie));
+
+                    }
+
+                }).then(() => resolve(serie));
+            });
+        }
+        function updateCapSerie(serie) {
+            console.log("update capitulo serie " + serie);
+            return new Promise((resolve, error) => {
+
+                check(serie, dicTemporada[serie], dicCapituloSub[serie] + 1).then((r) => {
+                    var response = "";
+                    if (r != NOT_FOUND) {
+                        
+                        if (r.includes(CAS)) {
+                            dicCapituloCas[serie]++;
+                        }
+                        if (r.includes(SUB)) {
+                            dicCapituloSub[serie]++;
+                            updateCapSerie(serie).then(() => resolve(serie));
+                        }
+                       
+
+                    }
+
+                }).then(() => resolve(serie));
+            });
+        }
+        function updateSerie(serie) {
+            return updateTempSerie(serie).then(updateCapSerie).then(updateDivSerie);
+        }
+        function updateTemporadasSeries() {
+            return updatesSeries(updateTempSerie);
+        }
+        function updateCapitulosSeries() {
+            return updatesSeries(updateCapSerie);
+
+        }
+        function updateAll() {
+            return updateTemporadasSeries().then(() => updateCapitulosSeries()).then(() => save());
+
+        }
+        function update() {
+            updateAll().then(print);
+        }
+        function addSerie() {
+            var inpUrl = document.getElementById('inpUrlSerie');
+            var urlLimiandose = inpUrl.value.replace(URL, '');
+            var indexFin = urlLimiandose.indexOf(TEMPORADA);
+            var serie = "";
+            if (indexFin > 0) {
+                series.push(urlLimiandose.substring(0, indexFin));
+                serie = series[series.length - 1];
+                dicCapituloCas[serie] = 1;
+                dicCapituloSub[serie] = 1;
+                dicTemporada[serie] = 1;
+                save();
+                ponSerie(serie);
+            }
+            inpUrl.value = "";
+
+        }
+        function ponSerie(serie) {
+            var divSeries = document.getElementById('containerSeries');
+            var id = "";
+
+            id = "serie_" + serie;
+            divSeries.innerHTML += '<div id="' + id + '" class="serie" onclick="updateSerie("' + serie + '")" ><p class="nombreSerie">' + arreglaNombre(serie) + '</p><p id="temp_' + serie + '" class="temporada">' + '</p><p id="cap_sub_' + serie + '" class="subEsp" >' + '</p><p id="cap_cas_' + serie + '" class="castellano"></p></div>';
+
+            updateDivSerie(serie);
+        }
+        function updateDivSerie(serie) {
+            console.log(serie, dicTemporada, dicCapituloSub, dicCapituloCas);
+            document.getElementById('temp_' + serie).innerText = dicTemporada[serie];
+            document.getElementById('cap_sub_' + serie).innerText = dicCapituloSub[serie];
+            document.getElementById('cap_cas_' + serie).innerText = dicCapituloCas[serie];
+            console.log('updated', serie);
+        }
+        function save() {
+            window.localStorage.setItem("temp", JSON.stringify(dicTemporada));
+            window.localStorage.setItem("sub", JSON.stringify(dicCapituloSub));
+            window.localStorage.setItem("cas", JSON.stringify(dicCapituloCas));
+            window.localStorage.setItem("series", JSON.stringify(series));
+
+        }
+        function load() {
+            //cargo la información
+            if (window.localStorage.temp) {
+                dicTemporada = JSON.parse(window.localStorage.getItem("temp"));
+                dicCapituloSub = JSON.parse(window.localStorage.getItem("sub"));
+                dicCapituloCas = JSON.parse(window.localStorage.getItem("cas"));
+                series = JSON.parse(window.localStorage.getItem("series"));
+                //pongo los divs
+                for (var i = 0; i < series.length; i++) {
+                    ponSerie(series[i]);
+                }
+                update();
+            }
+
+        }
+        function arreglaNombre(nombre) {
+            while (nombre.indexOf('-') > 0)
+                nombre = nombre.replace('-', ' ');
+            return nombre;
+        }
+        function print() {
+            console.log(series);
+            console.log(dicTemporada);
+            console.log(dicCapituloSub);
+            console.log(dicCapituloCas);
+        }
+        function check(serie, temporada, capitulo) {
+            console.log(serie + '=' + temporada + ":" + capitulo);
+            var urlSerie = URL + serie + TEMPORADA + temporada + CAPITULO + capitulo;
+            return fetch(urlSerie).then((r) => r.text()).then((pagina) => {
+                var result = "";
+                if (pagina.includes(NOT_FOUND)) {
+                    result = NOT_FOUND;
+                }
+                else {
+                    if (pagina.includes(ID_CAS)) {
+                        result += "|" + CAS;
+
+                    }
+                    if (pagina.includes(ID_LATINO)) {
+                        result += "|" + LATINO;
+                    } if (pagina.includes(ID_SUB)) {
+                        result += "|" + SUB;
+                    }
+                    result=result.sub(1);
+                }
+                return result;
+
+            });
+        }
+    </script>
+</head>
+
+<body>
+    <input type="button" onClick="update()" value="Update All">
+    <input id="inpUrlSerie" type="text" placeholder="url serie" />
+    <input type="button" onClick="addSerie()" value="Add" />
+    <div id="containerSeries"></div>
+    <script>
+        load();
+    </script>
+</body>
+
+</html>
