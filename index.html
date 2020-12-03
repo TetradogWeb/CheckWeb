@@ -1,42 +1,49 @@
 ﻿<html>
 
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
+        integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"
+        integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
     <style>
-        .serie{
+        .serie {
 
-            border:black solid 1px;
-            margin:5px;
+            border: black solid 1px;
+            margin: 5px;
 
         }
-        .nombreSerie{
-           font-weight: bold;
-           text-align: center;
+
+        .nombreSerie {
+            font-weight: bold;
+            text-align: center;
         }
-        .temporada{
+
+        .temporada {
             position: relative;
             float: left;
             font-size: 300%;
             width: 30px;
         }
-        .subEsp{
+
+        .subEsp {
             position: relative;
             float: left;
-            color:blueviolet;
+            color: blueviolet;
             width: 70px;
             background-image: url("subEsp.png");
             background-repeat: no-repeat;
             background-position: 10px;
             background-size: 15px;
 
-        
+
         }
-        .castellano{
+
+        .castellano {
             position: relative;
             float: left;
-            color:rebeccapurple;
+            color: rebeccapurple;
             width: 70px;
             background-image: url("esp.png");
             background-repeat: no-repeat;
@@ -46,192 +53,216 @@
         }
     </style>
     <script>
-        const URL = "https://pelisplus.icu/ver/";
-        const SERIE_LA_MATERIA_OSCURA = "la-materia-oscura";
-        const TEMPORADA = "-temporada-";
-        const CAPITULO = "-capitulo-";
-        const ID_CAS= "level2_castell";
-        const ID_LATINO = "level1_latino";
-        const ID_SUB="level1_castellano";
-
-        const NOT_FOUND = "404";
-        const SUB = "subEsp";
-        const CAS = "castellano";
-        const LATINO = "latino";
-
-
-        var series = [];
-
-        var dicTemporada = {};
-        var dicCapituloSub = {};
-        var dicCapituloCas = {};
-
-
-
-        function updatesSeries(metodo) {
-            var promises = [];
-            for (var i = 0; i < series.length; i++) {
-                promises.push(metodo(series[i]).then(updateDivSerie));
+        class Serie {
+            constructor(url) {
+                var urlLimiandose = url.replace(Serie.UrlHome, '');
+                var indexFin = urlLimiandose.indexOf(Serie.ParamTemporada);
+                this.Titulo = urlLimiandose.substring(0, indexFin);
+                this.Temporadas = [];
+                this.Init = this.Update();
             }
-            return Promise.all(promises);
-        }
-        function updateTempSerie(serie) {
-            console.log("update temporada serie " + serie);
-            return new Promise((resolve, error) => {
-
-                check(serie, dicTemporada[serie] + 1, 1).then((r) => {
-                    var response = "";
-                    if (r != NOT_FOUND) {
-                        console.log("updating temporada serie " + serie);
-                        dicTemporada[serie]++;
-                        updateTempSerie(serie).then(() => resolve(serie));
-
-                    }
-
-                }).then(() => resolve(serie));
-            });
-        }
-        function updateCapSerie(serie) {
-            console.log("update capitulo serie " + serie);
-            return new Promise((resolve, error) => {
-
-                check(serie, dicTemporada[serie], dicCapituloSub[serie] + 1).then((r) => {
-                    var response = "";
-                    if (r != NOT_FOUND) {
-                        
-                        if (r.includes(CAS)) {
-                            dicCapituloCas[serie]++;
-                        }
-                        if (r.includes(SUB)) {
-                            dicCapituloSub[serie]++;
-                            updateCapSerie(serie).then(() => resolve(serie));
-                        }
-                       
-
-                    }
-
-                }).then(() => resolve(serie));
-            });
-        }
-        function updateSerie(serie) {
-            return updateTempSerie(serie).then(updateCapSerie).then(updateDivSerie);
-        }
-        function updateTemporadasSeries() {
-            return updatesSeries(updateTempSerie);
-        }
-        function updateCapitulosSeries() {
-            return updatesSeries(updateCapSerie);
-
-        }
-        function updateAll() {
-            return updateTemporadasSeries().then(() => updateCapitulosSeries()).then(() => save());
-
-        }
-        function update() {
-            updateAll().then(print);
-        }
-        function addSerie() {
-            var inpUrl = document.getElementById('inpUrlSerie');
-            var urlLimiandose = inpUrl.value.replace(URL, '');
-            var indexFin = urlLimiandose.indexOf(TEMPORADA);
-            var serie = "";
-            if (indexFin > 0) {
-                series.push(urlLimiandose.substring(0, indexFin));
-                serie = series[series.length - 1];
-                dicCapituloCas[serie] = 1;
-                dicCapituloSub[serie] = 1;
-                dicTemporada[serie] = 1;
-                save();
-                ponSerie(serie);
+            get Id(){
+                return '#'+this.Titulo;
             }
-            inpUrl.value = "";
+            get Nombre() {
+                return this.Titulo.replace('-', ' ');
+            }
+             
+            static get UrlHome() {
+                return "https://pelisplus.icu/";
+            }
+            static get ParamTemporada() {
+                return "-temporada-";
+            }
+            static get ParamCapitulo() {
+                return "-capitulo-";
+            }
+            GetOuterHTML(){
+                var outer="<div id='#"+this.Titulo+"' class='serie'>";
+                    outer+=GetInnerHTML();
 
-        }
-        function ponSerie(serie) {
-            var divSeries = document.getElementById('containerSeries');
-            var id = "";
+                outer+="</div";
+                return outer;
+            }
+            GetInnerHTML(){
+                var inner="<div>";
+                    //Nombre
+                    inner+="<h2>"+this.Nombre+"</h2>";
+                    //idioma,temporada,ultimo capitulo
 
-            id = "serie_" + serie;
-            divSeries.innerHTML += '<div id="' + id + '" class="serie col-12 col-sm-3" onclick="updateSerie("' + serie + '")" ><p class="nombreSerie">' + arreglaNombre(serie) + '</p><p id="temp_' + serie + '" class="temporada">' + '</p><p id="cap_sub_' + serie + '" class="subEsp" >' + '</p><p id="cap_cas_' + serie + '" class="castellano"></p></div>';
+                inner+="</div";
+                return inner;
+            }
+            Url(temp = 1, cap = 1) {
+                return Serie.UrlHome + this.Titulo + Serie.ParamTemporada + temp + Serie.ParamCapitulo + cap;
+            }
+            Update() {
+                return UpdateList().then(() => {
+                    return Promise.all(this.Temporadas.map((t) => t.Update()));
+                });
+            }
+            UpdateList() {
+                var ultima = this.Temporadas.length + 1;
+                var urlTemporada = this.Url(ultima);
+                return Serie.PaginaHtml(urlTemporada).then(Serie.Existe).then((existe) => {
+                    if (existe) {
+                        return UpdateList();
+                    }
+                });
+            }
+            static PaginaHtml(url) {
+                return fetch(url).then((r) => r.text());
+            }
+            static Existe(paginaHtml) {
+                const NOT_FOUND = "404";
+                return !paginaHtml.includes(NOT_FOUND) && paginaHtml.length < 20;
+            }
+        }
+        class Temporada {
+            constructor(url) {
+                //numero
+                var inicio = url.lastIndexOf(Serie.ParamTemporada) + Serie.ParamTemporada.length;
+                this.Numero = url.substr(incio, url.indexOf(Serie.ParamCapitulo) - inicio);
+                this.Capitulos = [];
+                this.Url = url.substr(0, url.lastIndexOf('-') + 1);
+                this.Init = Serie.PaginaHtml(this.PrimerCapitulo).then(Serie.Existe).then((existe) => {
+                    this.Existe = existe;
+                    if (existe) {
+                        return this.Update();
+                    }
+                });
+            }
+            get PrimerCapitulo() {
+                return this.Url + 1;
+            }
+            Update() {
+                return UpdateList().then(() => UpdateLang());
+            }
+            UpdateLang() {
+                var promesas = [];
 
-            updateDivSerie(serie);
-        }
-        function updateDivSerie(serie) {
-            console.log(serie, dicTemporada, dicCapituloSub, dicCapituloCas);
-            document.getElementById('temp_' + serie).innerText = dicTemporada[serie];
-            document.getElementById('cap_sub_' + serie).innerText = dicCapituloSub[serie];
-            document.getElementById('cap_cas_' + serie).innerText = dicCapituloCas[serie];
-            console.log('updated', serie);
-        }
-        function save() {
-            window.localStorage.setItem("temp", JSON.stringify(dicTemporada));
-            window.localStorage.setItem("sub", JSON.stringify(dicCapituloSub));
-            window.localStorage.setItem("cas", JSON.stringify(dicCapituloCas));
-            window.localStorage.setItem("series", JSON.stringify(series));
-
-        }
-        function load() {
-            //cargo la información
-            if (window.localStorage.temp) {
-                dicTemporada = JSON.parse(window.localStorage.getItem("temp"));
-                dicCapituloSub = JSON.parse(window.localStorage.getItem("sub"));
-                dicCapituloCas = JSON.parse(window.localStorage.getItem("cas"));
-                series = JSON.parse(window.localStorage.getItem("series"));
-                //pongo los divs
-                for (var i = 0; i < series.length; i++) {
-                    ponSerie(series[i]);
+                //miro si hay más idiomas
+                for (var i = 0; i < this.Capitulos.length; i++) {
+                    promesas.push(this.Capitulos[i].Update());
                 }
-                update();
+                return Promise.all(promesas);
+            }
+            UpdateList() {
+                //miro si hay más capitulos
+                var ultimo = this.Capitulos.length + 1;//si no hay será el primero :)
+                var urlUltimoCapitulo = this.Url + ultimo;
+                return Serie.PaginaHtml(urlUltimoCapitulo).then(pagina => Serie.Existe(pagina)).then((existe) => {
+                    if (existe) {
+                        this.Capitulos.push(Capitulo(urlUltimoCapitulo));
+                        return this.Capitulos[this.Capitulos.length - 1].Init.then(() => this.UpdateList());
+                    }
+                });
+            }
+        }
+        class Capitulo {
+
+            constructor(url) {
+                //numero
+                this.Numero = url.substr(url.lastIndexOf('-') + 1);
+                this.Url = url;
+                this.Init = this.Update();
+
+            }
+            Update() {
+                return Serie.PaginaHtml(this.Url).then(pagina => {
+                    var aux;
+                    //existe
+                    this.Existe = Serie.Existe(pagina);
+                    //idiomas
+                    if (this.Existe) {
+                        aux = document.createElement('div');
+                        aux.outerHTML = pagina;
+                        aux = aux.getElementsByClassName('level1');
+
+                        this.Idiomas = aux.children.map((c) => {
+                            //li->a
+                            var idioma;
+                            switch (c.firstchild.innerText) {
+                                case 'Latino': idioma = Idioma.Latino; break;
+                                case 'Subtitulado': idioma = Idioma.SubEsp; break;
+                                case 'Castellano': idioma = Idioma.Castellano; break;
+                                default: idioma = Idioma(c.firstchild.innerText); break;
+                            }
+                            return idiomas;
+                        });
+                    }
+                });
             }
 
         }
-        function arreglaNombre(nombre) {
-            while (nombre.indexOf('-') > 0)
-                nombre = nombre.replace('-', ' ');
-            return nombre;
+        class Idioma {
+            constructor(nombre) {
+                this.Nombre = nombre;
+            }
+            get UrlImg() {
+                return this.Nombre + '.jpg';
+            }
+            static get Latino() {
+                return Idioma('Latino');
+            }
+            static get Castellano() {
+                return Idioma('Castellano');
+            }
+            static get SubEsp() {
+                return Idioma('SubEsp');
+            }
         }
-        function print() {
-            console.log(series);
-            console.log(dicTemporada);
-            console.log(dicCapituloSub);
-            console.log(dicCapituloCas);
-        }
-        function check(serie, temporada, capitulo) {
-            console.log(serie + '=' + temporada + ":" + capitulo);
-            var urlSerie = URL + serie + TEMPORADA + temporada + CAPITULO + capitulo;
-            return fetch(urlSerie).then((r) => r.text()).then((pagina) => {
-                var result = "";
-                if (pagina.includes(NOT_FOUND)) {
-                    result = NOT_FOUND;
-                }
-                else {
-                    if (pagina.includes(ID_CAS)) {
-                        result += "|" + CAS;
 
-                    }
-                    if (pagina.includes(ID_LATINO)) {
-                        result += "|" + LATINO;
-                    } if (pagina.includes(ID_SUB)) {
-                        result += "|" + SUB;
-                    }
-                    result=result.sub(1);
-                }
-                return result;
+        $(function () {
+            var Series=[];
+            //load
+            if (window.localStorage.Series) {
+                Series = JSON.parse(window.localStorage.getItem("Series"));
+                Series.map(AddSerie);
+            }
 
-            });
-        }
+            function AddSerie(serie){
+                if(!exists(serie.Id)){
+                  $('#series').append(serie.GetOuterHTML());
+                }
+            }
+
+            function Refresh(){
+                var divSerie;
+                for(var i=0;i<Series.length;i++){
+                    divSerie=$(Series[i].Id);
+                    divSerie.innerHTML=Serie[i].GetInnerHTML();
+                }
+            }
+
+            function Update(){
+                return Promise.all(Series.map((s)=>s.Update())).then(()=>Save()).then(()=>Refresh());
+            }
+
+            function Save(){
+                window.localStorage.setItem("Series", JSON.stringify(Series));
+            }
+
+
+
+            function exists(elementName) {
+                //source:https://stackoverflow.com/questions/4592493/check-if-element-exists-in-jquery
+                 		return $(elementName).length; 
+            }
+        });
+
     </script>
 </head>
 
 <body>
-<div class="container">
-<div class="row">
-    <input type="button" onClick="update()" value="Update All">
-    <input id="inpUrlSerie" class="col-9 col-sm-6" type="text" placeholder="url serie" />
-    <input type="button" onClick="addSerie()" value="Add" />
-</div>
-    <div id="containerSeries" class="row" ></div>
-</div>
+    <div class="container">
+        <div class="row">
+            <input id="btnUpdateAll" type="button" class="btn btn-primary" value="Update All">
+            <input id="inpUrlSerie" class="col-9 col-sm-6" type="text" placeholder="url serie" />
+            <input id="btnAdd" type="button" class="btn btn-success"  value="Add" />
+        </div>
+        <div id="series" class="row"></div>
+    </div>
     <script>
         load();
     </script>
