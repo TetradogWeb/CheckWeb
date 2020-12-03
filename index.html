@@ -26,12 +26,16 @@
             font-size: 300%;
             width: 30px;
         }
+        .temporadaNoActual{
+            font-size: 120%;
+            color:blue;
+        }
 
         .subEsp {
             position: relative;
             float: left;
             color: blueviolet;
-            width: 70px;
+            width: 100px;
             background-image: url("subEsp.png");
             background-repeat: no-repeat;
             background-position: 10px;
@@ -44,7 +48,7 @@
             position: relative;
             float: left;
             color: rebeccapurple;
-            width: 70px;
+            width: 100px;
             background-image: url("esp.png");
             background-repeat: no-repeat;
             background-position: 10px;
@@ -55,7 +59,7 @@
             position: relative;
             float: left;
             color: rebeccapurple;
-            width: 70px;
+            width: 100px;
             background-image: url("latino.jpg");
             background-repeat: no-repeat;
             background-position: 10px;
@@ -159,7 +163,12 @@
                         idiomas = temp.Capitulos[j].Idiomas;
                         for (var i = 0; i < idiomas.length && Array.from(dicIdiomas).length < Idioma.Total; i++) {
                             if (!(idiomas[i].Nombre in dicIdiomas)) {
-                                inner += "<p class='" + idiomas[i].Nombre + "'>" + (j+1) + "</p>";
+                                inner += "<p class='" + idiomas[i].Nombre + "'>";
+                                if(temporada<this.Temporadas.length-1)
+                                {
+                                    inner+="T:<p class='temporadaNoActual'>"+temporada+"</p>:";
+                                }
+                                inner += (j+1) + "</p>";
                                 dicIdiomas[idiomas[i].Nombre] = idiomas[i].Nombre;
                             }
                         }
@@ -438,7 +447,7 @@
     <div class="container">
         <div class="row">
             <input id="btnUpdate" type="button" class="btn btn-primary" value="Update">
-            <input id="inpUrl" class="col-9 col-sm-6" type="text" placeholder="url serie" />
+            <input id="inpUrl" class="col-10 col-sm-6" type="text" placeholder="url serie pelisplus.icu" />
             <input id="btnAdd" type="button" class="btn btn-success" value="Add" />
 
 
