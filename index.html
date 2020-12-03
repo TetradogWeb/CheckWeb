@@ -129,16 +129,35 @@
                 return outer;
             }
             GetInnerHTML() {
+                var temp;
+                var idiomas;
                 var inner = "";
-                var temp = this.Temporadas[this.Temporadas.length - 1];
-                var idiomas = temp.Capitulos[temp.Capitulos.length - 1].Idiomas;
+
+                var dicIdiomas = {};
+                var temporada = this.Temporadas.length - 1;
+                var capitulo;
                 //Nombre
                 inner += "<h2 class='nombreSerie' >" + this.Nombre + "</h2>";
                 //idioma,temporada,ultimo capitulo
                 inner += "<p class='temporada'>" + this.Temporadas.length + "</p>";
-                for (var i = 0; i < idiomas.length; i++) {
-                    inner += "<p class='" + idiomas[i].Nombre + "'>" + temp.Capitulos.length + "</p>";
-                }
+
+                do {
+                    temp = this.Temporadas[temporada];
+                    capitulo = temp.Capitulos.length - 1;
+                    for (var j = capitulo; j > 0 && Array.from(dicIdiomas).length < Idioma.Total; j--) {
+                        idiomas = temp.Capitulos[j].Idiomas;
+                        for (var i = 0; i < idiomas.length && Array.from(dicIdiomas).length < Idioma.Total; i++) {
+                            if (!(idiomas[i].Nombre in dicIdiomas)) {
+                                inner += "<p class='" + idiomas[i].Nombre + "'>" + (j+1) + "</p>";
+                                dicIdiomas[idiomas[i].Nombre] = idiomas[i].Nombre;
+                            }
+                        }
+                    }
+                    temporada--;
+                } while (temporada > 0 &&Array.from(dicIdiomas).length < Idioma.Total);
+
+
+
                 return inner;
             }
             Url(temp = 1, cap = 1) {
@@ -315,6 +334,9 @@
             }
             static get SubEsp() {
                 return new Idioma('SubEsp');
+            }
+            static get Total() {
+                return 3;
             }
             toJSON() {
                 return JSON.stringify({ nombre: this.Nombre });
