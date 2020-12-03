@@ -51,25 +51,56 @@
             background-size: 15px;
 
         }
+
+        .loader {
+            border: 16px solid #f3f3f3;
+            /* Light grey */
+            border-top: 16px solid #3498db;
+            /* Blue */
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
     <script>
         class Serie {
             constructor(url) {
-                var urlLimiandose = url.replace(Serie.UrlHome, '');
-                var indexFin = urlLimiandose.indexOf(Serie.ParamTemporada);
-                this.Titulo = urlLimiandose.substring(0, indexFin);
+                var urlLimiandose;
+                var indexFin;
                 this.Temporadas = [];
-                this.Init = this.Update();
+                this.Titulo = "";
+                if (url != '') {
+
+                    urlLimiandose = url.replace(Serie.Url, '');
+                    indexFin = urlLimiandose.indexOf(Serie.ParamTemporada);
+                    this.Titulo = urlLimiandose.substring(0, indexFin);
+
+                    this.Init = this.Update();
+                } else this.Init = Promise.resolve();
             }
-            get Id(){
-                return '#'+this.Titulo;
+            get Id() {
+                return '#' + this.Titulo;
             }
             get Nombre() {
                 return this.Titulo.replace('-', ' ');
             }
-             
+
             static get UrlHome() {
                 return "https://pelisplus.icu/";
+            }
+            static get Url() {
+                return Serie.UrlHome + 'ver/';
             }
             static get ParamTemporada() {
                 return "-temporada-";
@@ -77,27 +108,39 @@
             static get ParamCapitulo() {
                 return "-capitulo-";
             }
-            GetOuterHTML(){
-                var outer="<div id='#"+this.Titulo+"' class='serie'>";
-                    outer+=GetInnerHTML();
+            toJSON() {
+                return JSON.stringify({ titulo: this.Titulo, temporadas: this.Temporadas });
+            }
+            setJSON(json) {
+                console.log(json);
+                var temporada;
+                this.Titulo = json.titulo;
+                for (var i = 0; i < json.temporadas.length; i++) {
+                    temporada = new Temporada('');
+                    temporada.setJSON(JSON.parse(json.temporada[i]));
+                    this.Temporadas.push(temporada);
+                }
+            }
+            GetOuterHTML() {
+                var outer = "<div id='#" + this.Titulo + "' class='serie'>";
+                outer += this.GetInnerHTML();
 
-                outer+="</div";
+                outer += "</div";
                 return outer;
             }
-            GetInnerHTML(){
-                var inner="<div>";
-                    //Nombre
-                    inner+="<h2>"+this.Nombre+"</h2>";
-                    //idioma,temporada,ultimo capitulo
+            GetInnerHTML() {
+                var inner = "";
+                //Nombre
+                inner += "<h2 class='nombreSerie' >" + this.Nombre + "</h2>";
+                //idioma,temporada,ultimo capitulo
 
-                inner+="</div";
                 return inner;
             }
             Url(temp = 1, cap = 1) {
-                return Serie.UrlHome + this.Titulo + Serie.ParamTemporada + temp + Serie.ParamCapitulo + cap;
+                return Serie.Url + this.Titulo + Serie.ParamTemporada + temp + Serie.ParamCapitulo + cap;
             }
             Update() {
-                return UpdateList().then(() => {
+                return this.UpdateList().then(() => {
                     return Promise.all(this.Temporadas.map((t) => t.Update()));
                 });
             }
@@ -106,7 +149,8 @@
                 var urlTemporada = this.Url(ultima);
                 return Serie.PaginaHtml(urlTemporada).then(Serie.Existe).then((existe) => {
                     if (existe) {
-                        return UpdateList();
+                        this.Temporadas.push(new Temporada(urlTemporada));
+                        return this.Temporadas[this.Temporadas.length - 1].Init.UpdateList();
                     }
                 });
             }
@@ -117,26 +161,52 @@
                 const NOT_FOUND = "404";
                 return !paginaHtml.includes(NOT_FOUND) && paginaHtml.length < 20;
             }
+            static FromJSON(series) {
+                return series.map((s) => {
+                    var serie = new Serie('');
+                    serie.setJSON(JSON.parse(s));
+                    return serie;
+
+                });
+            }
         }
         class Temporada {
             constructor(url) {
-                //numero
-                var inicio = url.lastIndexOf(Serie.ParamTemporada) + Serie.ParamTemporada.length;
-                this.Numero = url.substr(incio, url.indexOf(Serie.ParamCapitulo) - inicio);
+                var inicio;
                 this.Capitulos = [];
-                this.Url = url.substr(0, url.lastIndexOf('-') + 1);
-                this.Init = Serie.PaginaHtml(this.PrimerCapitulo).then(Serie.Existe).then((existe) => {
-                    this.Existe = existe;
-                    if (existe) {
-                        return this.Update();
-                    }
-                });
+                this.Numero = '';
+
+                if (url != '') {
+                    //numero
+                    inicio = url.lastIndexOf(Serie.ParamTemporada) + Serie.ParamTemporada.length;
+                    this.Numero = url.substr(incio, url.indexOf(Serie.ParamCapitulo) - inicio);
+
+                    this.Url = url.substr(0, url.lastIndexOf('-') + 1);
+                    this.Init = Serie.PaginaHtml(this.PrimerCapitulo).then(Serie.Existe).then((existe) => {
+                        this.Existe = existe;
+                        if (existe) {
+                            return this.Update();
+                        }
+                    });
+                } else this.Init = Promise.resolve();
             }
             get PrimerCapitulo() {
                 return this.Url + 1;
             }
+            toJSON() {
+                return JSON.stringify({ numero: this.Numero, capitulos: this.Capitulos });
+            }
+            setJSON(json) {
+                var capitulo;
+                this.Numero = json.numero;
+                for (var i = 0; i < json.capitulos.length; i++) {
+                    capitulo = new Capitulo();
+                    capitulo.setJSON(JSON.parse(json.capitulos[i]));
+                    this.Capitulos.push(capitulo);
+                }
+            }
             Update() {
-                return UpdateList().then(() => UpdateLang());
+                return this.UpdateList().then(() => this.UpdateLang());
             }
             UpdateLang() {
                 var promesas = [];
@@ -151,9 +221,9 @@
                 //miro si hay más capitulos
                 var ultimo = this.Capitulos.length + 1;//si no hay será el primero :)
                 var urlUltimoCapitulo = this.Url + ultimo;
-                return Serie.PaginaHtml(urlUltimoCapitulo).then(pagina => Serie.Existe(pagina)).then((existe) => {
+                return Serie.PaginaHtml(urlUltimoCapitulo).then(Serie.Existe).then((existe) => {
                     if (existe) {
-                        this.Capitulos.push(Capitulo(urlUltimoCapitulo));
+                        this.Capitulos.push(new Capitulo(urlUltimoCapitulo));
                         return this.Capitulos[this.Capitulos.length - 1].Init.then(() => this.UpdateList());
                     }
                 });
@@ -163,10 +233,24 @@
 
             constructor(url) {
                 //numero
-                this.Numero = url.substr(url.lastIndexOf('-') + 1);
-                this.Url = url;
-                this.Init = this.Update();
+                this.Idiomas = [];
 
+                this.Numero = '';
+                if (url != '') {
+                    this.Numero = url.substr(url.lastIndexOf('-') + 1);
+                    this.Url = url;
+                    this.Init = this.Update();
+                } else this.Init = Promise.resolve();
+
+            }
+            toJSON() {
+                return JSON.stringify({ numero: this.Numero, idiomas: this.Idiomas });
+            }
+            setJSON(json){
+                this.Numero=json.numero;
+                json.idiomas.map((idioma)=>{
+                    this.Idiomas.push(new Idioma(idioma.nombre));
+                });
             }
             Update() {
                 return Serie.PaginaHtml(this.Url).then(pagina => {
@@ -186,7 +270,7 @@
                                 case 'Latino': idioma = Idioma.Latino; break;
                                 case 'Subtitulado': idioma = Idioma.SubEsp; break;
                                 case 'Castellano': idioma = Idioma.Castellano; break;
-                                default: idioma = Idioma(c.firstchild.innerText); break;
+                                default: idioma = new Idioma(c.firstchild.innerText); break;
                             }
                             return idiomas;
                         });
@@ -203,43 +287,67 @@
                 return this.Nombre + '.jpg';
             }
             static get Latino() {
-                return Idioma('Latino');
+                return new Idioma('Latino');
             }
             static get Castellano() {
-                return Idioma('Castellano');
+                return new Idioma('Castellano');
             }
             static get SubEsp() {
-                return Idioma('SubEsp');
+                return new Idioma('SubEsp');
+            }
+            toJSON() {
+                return JSON.stringify({ nombre: this.Nombre });
             }
         }
 
         $(function () {
-            var Series=[];
+            var Series = [];
             //load
+            $('#btnUpdate').click(function () {
+                //init
+                $('#loader').show();
+                Update().then(() => {
+                    //finish
+                    $('#loader').hide();
+                });
+
+            });
+            $('#btnAdd').click(function () {
+                var inpUrl = $('#inpUrl');
+                var serie = new Serie(inpUrl.val());
+                serie.Init.then(() => {
+                    if (!exists(serie.Id)) {
+                        Series.push(serie);
+                        AddSerie(serie);
+                        Save();
+                    }
+                    inpUrl.val('');
+                });
+            });
             if (window.localStorage.Series) {
-                Series = JSON.parse(window.localStorage.getItem("Series"));
+                Series = Serie.FromJSON(JSON.parse(window.localStorage.getItem("Series")));
                 Series.map(AddSerie);
             }
 
-            function AddSerie(serie){
-                if(!exists(serie.Id)){
-                  $('#series').append(serie.GetOuterHTML());
+            function AddSerie(serie) {
+                if (!exists(serie.Id)) {
+                    $('#series').append(serie.GetOuterHTML());
                 }
             }
 
-            function Refresh(){
+            function Refresh() {
                 var divSerie;
-                for(var i=0;i<Series.length;i++){
-                    divSerie=$(Series[i].Id);
-                    divSerie.innerHTML=Serie[i].GetInnerHTML();
+                for (var i = 0; i < Series.length; i++) {
+                    divSerie = $(Series[i].Id);
+                    divSerie.innerHTML = Serie[i].GetInnerHTML();
                 }
             }
 
-            function Update(){
-                return Promise.all(Series.map((s)=>s.Update())).then(()=>Save()).then(()=>Refresh());
+            function Update() {
+                return Promise.all(Series.map((s) => s.Update())).then(() => Save()).then(() => Refresh());
             }
 
-            function Save(){
+            function Save() {
                 window.localStorage.setItem("Series", JSON.stringify(Series));
             }
 
@@ -247,7 +355,7 @@
 
             function exists(elementName) {
                 //source:https://stackoverflow.com/questions/4592493/check-if-element-exists-in-jquery
-                 		return $(elementName).length; 
+                return $(elementName).length;
             }
         });
 
@@ -258,14 +366,13 @@
     <div class="container">
         <div class="row">
             <input id="btnUpdateAll" type="button" class="btn btn-primary" value="Update All">
-            <input id="inpUrlSerie" class="col-9 col-sm-6" type="text" placeholder="url serie" />
-            <input id="btnAdd" type="button" class="btn btn-success"  value="Add" />
+            <input id="inpUrl" class="col-9 col-sm-6" type="text" placeholder="url serie" />
+            <input id="btnAdd" type="button" class="btn btn-success" value="Add" />
+            <div id="loader" class="loader" hidden></div>
         </div>
         <div id="series" class="row"></div>
     </div>
-    <script>
-        load();
-    </script>
+
 </body>
 
 </html>
