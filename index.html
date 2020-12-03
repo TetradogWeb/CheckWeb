@@ -116,7 +116,8 @@
                 this.Titulo = json.titulo;
                 for (var i = 0; i < json.temporadas.length; i++) {
                     temporada = new Temporada('');
-                    temporada.setJSON(JSON.parse(json.temporadas[i]));
+                    temporada.InitFromJSON(JSON.parse(json.temporadas[i]),Serie.Url+this.Titulo+Serie.ParamTemporada);
+                    
                     this.Temporadas.push(temporada);
                 }
             }
@@ -160,6 +161,7 @@
             }
             static PaginaHtml(url) {
                 return fetch(url).then((r) => r.text());
+                
             }
             static Existe(paginaHtml) {
                 return paginaHtml.length>20;
@@ -199,12 +201,16 @@
             toJSON() {
                 return JSON.stringify({ numero: this.Numero, capitulos: this.Capitulos });
             }
-            setJSON(json) {
+            InitFromJSON(json,url) {
                 var capitulo;
+
                 this.Numero = json.numero;
+                this.Url=url+this.Numero+Serie.ParamCapitulo;
+               
                 for (var i = 0; i < json.capitulos.length; i++) {
                     capitulo = new Capitulo('');
                     capitulo.setJSON(JSON.parse(json.capitulos[i]));
+                    capitulo.Url=this.Url+capitulo.Numero;
                     this.Capitulos.push(capitulo);
                 }
             }
@@ -224,6 +230,7 @@
                 var capitulo;
                 //miro si hay más capitulos
                 var ultimo = this.Capitulos.length + 1;//si no hay será el primero :)
+              
                 var urlUltimoCapitulo = this.Url + ultimo;
                 console.log('probando capitulo '+urlUltimoCapitulo);
                 return Serie.PaginaHtml(urlUltimoCapitulo).then(Serie.Existe).then((existe) => {
@@ -259,7 +266,6 @@
                 for(var i=0;i<json.idiomas.length;i++){
                  this.Idiomas.push(  new Idioma(json.idiomas[i].replaceAll('"','').replaceAll('}','').split(':')[1]));
                 }
-                console.log(this.Idiomas);
             }
             Update() {
                 return Serie.PaginaHtml(this.Url).then(pagina => {
@@ -322,10 +328,12 @@
                 console.log('inicio update');
                 //init
                 $('#loader').show();
+                $('#series').hide();
                 Update().then(() => {
                     //finish
                     console.log('fin update');
                     $('#loader').hide();
+                    $('#series').show();
                 });
 
             });
@@ -372,6 +380,7 @@
 
             function Save() {
                 console.log('guardando');
+                console.log(Series);
                 window.localStorage.setItem("Series", JSON.stringify(Series));
              
             }
@@ -397,8 +406,10 @@
             <input id="btnUpdate" type="button" class="btn btn-primary" value="Update">
             <input id="inpUrl" class="col-9 col-sm-6" type="text" placeholder="url serie" />
             <input id="btnAdd" type="button" class="btn btn-success" value="Add" />
-            <div id="loader" class="loader"></div>
+            
+            
         </div>
+        <div id="loader" class="loader row"></div>
         <div id="series" class="row"></div>
     </div>
 
