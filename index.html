@@ -90,10 +90,10 @@
                 } else this.Init = Promise.resolve();
             }
             get Id() {
-                return '#' + this.Titulo;
+                return this.Titulo;
             }
             get Nombre() {
-                return this.Titulo.replace('-', ' ');
+                return this.Titulo.replaceAll('-', ' ');
             }
 
             static get UrlHome() {
@@ -112,17 +112,16 @@
                 return JSON.stringify({ titulo: this.Titulo, temporadas: this.Temporadas });
             }
             setJSON(json) {
-                console.log(json);
                 var temporada;
                 this.Titulo = json.titulo;
                 for (var i = 0; i < json.temporadas.length; i++) {
                     temporada = new Temporada('');
-                    temporada.setJSON(JSON.parse(json.temporada[i]));
+                    temporada.setJSON(JSON.parse(json.temporadas[i]));
                     this.Temporadas.push(temporada);
                 }
             }
             GetOuterHTML() {
-                var outer = "<div id='#" + this.Titulo + "' class='serie'>";
+                var outer = "<div id='" + this.Id + "' class='serie'>";
                 outer += this.GetInnerHTML();
 
                 outer += "</div";
@@ -145,12 +144,17 @@
                 });
             }
             UpdateList() {
+                var temporada;
                 var ultima = this.Temporadas.length + 1;
                 var urlTemporada = this.Url(ultima);
+                console.log('probando temporada '+urlTemporada);
                 return Serie.PaginaHtml(urlTemporada).then(Serie.Existe).then((existe) => {
+                   
                     if (existe) {
-                        this.Temporadas.push(new Temporada(urlTemporada));
-                        return this.Temporadas[this.Temporadas.length - 1].Init.UpdateList();
+                        console.log('existe',urlTemporada);
+                        temporada=new Temporada(urlTemporada);
+                        this.Temporadas.push(temporada);
+                        return temporada.Init.then(()=>this.UpdateList());
                     }
                 });
             }
@@ -158,8 +162,7 @@
                 return fetch(url).then((r) => r.text());
             }
             static Existe(paginaHtml) {
-                const NOT_FOUND = "404";
-                return !paginaHtml.includes(NOT_FOUND) && paginaHtml.length < 20;
+                return paginaHtml.length>20;
             }
             static FromJSON(series) {
                 return series.map((s) => {
@@ -172,14 +175,14 @@
         }
         class Temporada {
             constructor(url) {
-                var inicio;
+                var inicio='';
                 this.Capitulos = [];
                 this.Numero = '';
 
                 if (url != '') {
                     //numero
                     inicio = url.lastIndexOf(Serie.ParamTemporada) + Serie.ParamTemporada.length;
-                    this.Numero = url.substr(incio, url.indexOf(Serie.ParamCapitulo) - inicio);
+                    this.Numero = url.substr(inicio, url.indexOf(Serie.ParamCapitulo) - inicio);
 
                     this.Url = url.substr(0, url.lastIndexOf('-') + 1);
                     this.Init = Serie.PaginaHtml(this.PrimerCapitulo).then(Serie.Existe).then((existe) => {
@@ -200,7 +203,7 @@
                 var capitulo;
                 this.Numero = json.numero;
                 for (var i = 0; i < json.capitulos.length; i++) {
-                    capitulo = new Capitulo();
+                    capitulo = new Capitulo('');
                     capitulo.setJSON(JSON.parse(json.capitulos[i]));
                     this.Capitulos.push(capitulo);
                 }
@@ -218,13 +221,16 @@
                 return Promise.all(promesas);
             }
             UpdateList() {
+                var capitulo;
                 //miro si hay más capitulos
                 var ultimo = this.Capitulos.length + 1;//si no hay será el primero :)
                 var urlUltimoCapitulo = this.Url + ultimo;
+                console.log('probando capitulo '+urlUltimoCapitulo);
                 return Serie.PaginaHtml(urlUltimoCapitulo).then(Serie.Existe).then((existe) => {
                     if (existe) {
-                        this.Capitulos.push(new Capitulo(urlUltimoCapitulo));
-                        return this.Capitulos[this.Capitulos.length - 1].Init.then(() => this.UpdateList());
+                        capitulo=new Capitulo(urlUltimoCapitulo);
+                        this.Capitulos.push(capitulo);
+                        return capitulo.Init.then(() => this.UpdateList());
                     }
                 });
             }
@@ -247,33 +253,40 @@
                 return JSON.stringify({ numero: this.Numero, idiomas: this.Idiomas });
             }
             setJSON(json){
+               
                 this.Numero=json.numero;
-                json.idiomas.map((idioma)=>{
-                    this.Idiomas.push(new Idioma(idioma.nombre));
-                });
+                this.Idiomas=[];
+                for(var i=0;i<json.idiomas.length;i++){
+                 this.Idiomas.push(  new Idioma(json.idiomas[i].replaceAll('"','').replaceAll('}','').split(':')[1]));
+                }
+                console.log(this.Idiomas);
             }
             Update() {
                 return Serie.PaginaHtml(this.Url).then(pagina => {
-                    var aux;
+                  
+                    var htmlUL;
+                    var inicio;
                     //existe
                     this.Existe = Serie.Existe(pagina);
                     //idiomas
                     if (this.Existe) {
-                        aux = document.createElement('div');
-                        aux.outerHTML = pagina;
-                        aux = aux.getElementsByClassName('level1');
-
-                        this.Idiomas = aux.children.map((c) => {
-                            //li->a
-                            var idioma;
-                            switch (c.firstchild.innerText) {
-                                case 'Latino': idioma = Idioma.Latino; break;
-                                case 'Subtitulado': idioma = Idioma.SubEsp; break;
-                                case 'Castellano': idioma = Idioma.Castellano; break;
-                                default: idioma = new Idioma(c.firstchild.innerText); break;
+                        inicio=pagina.indexOf('<ul class="level1">');
+                        htmlUL =pagina.substring(inicio,pagina.indexOf('</ul>',inicio)+5);
+                           this.Idiomas=[];
+                            if(htmlUL.includes('level1_latino'))
+                            {
+                                this.Idiomas.push(Idioma.Latino);
                             }
-                            return idiomas;
-                        });
+                            if(htmlUL.includes('level1_castellano'))
+                            {
+                                this.Idiomas.push(Idioma.SubEsp);
+                            }
+                            if(htmlUL.includes('level1_castell"'))
+                            {
+                                this.Idiomas.push(Idioma.Castellano);
+                            }
+                      
+                 
                     }
                 });
             }
@@ -302,12 +315,16 @@
 
         $(function () {
             var Series = [];
+
+            $('#loader').hide();
             //load
             $('#btnUpdate').click(function () {
+                console.log('inicio update');
                 //init
                 $('#loader').show();
                 Update().then(() => {
                     //finish
+                    console.log('fin update');
                     $('#loader').hide();
                 });
 
@@ -317,6 +334,7 @@
                 var serie = new Serie(inpUrl.val());
                 serie.Init.then(() => {
                     if (!exists(serie.Id)) {
+                        console.log('serie añadida '+serie.Nombre);
                         Series.push(serie);
                         AddSerie(serie);
                         Save();
@@ -325,8 +343,11 @@
                 });
             });
             if (window.localStorage.Series) {
+                console.log('cargando');
                 Series = Serie.FromJSON(JSON.parse(window.localStorage.getItem("Series")));
                 Series.map(AddSerie);
+            }else{
+                console.log('empty');
             }
 
             function AddSerie(serie) {
@@ -337,10 +358,12 @@
 
             function Refresh() {
                 var divSerie;
+                console.log('refresh');
                 for (var i = 0; i < Series.length; i++) {
                     divSerie = $(Series[i].Id);
-                    divSerie.innerHTML = Serie[i].GetInnerHTML();
+                    divSerie.innerHTML = Series[i].GetInnerHTML();
                 }
+           
             }
 
             function Update() {
@@ -348,12 +371,18 @@
             }
 
             function Save() {
+                console.log('guardando');
                 window.localStorage.setItem("Series", JSON.stringify(Series));
+             
             }
 
 
 
             function exists(elementName) {
+                if(elementName[0]!='#')
+                {
+                    elementName='#'+elementName;
+                }
                 //source:https://stackoverflow.com/questions/4592493/check-if-element-exists-in-jquery
                 return $(elementName).length;
             }
@@ -365,10 +394,10 @@
 <body>
     <div class="container">
         <div class="row">
-            <input id="btnUpdateAll" type="button" class="btn btn-primary" value="Update All">
+            <input id="btnUpdate" type="button" class="btn btn-primary" value="Update">
             <input id="inpUrl" class="col-9 col-sm-6" type="text" placeholder="url serie" />
             <input id="btnAdd" type="button" class="btn btn-success" value="Add" />
-            <div id="loader" class="loader" hidden></div>
+            <div id="loader" class="loader"></div>
         </div>
         <div id="series" class="row"></div>
     </div>
