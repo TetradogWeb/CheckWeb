@@ -171,13 +171,13 @@
                         for (var i = 0; i < idiomas.length && Array.from(dicIdiomas).length < Idioma.Total; i++) {
                             if (!(idiomas[i].Nombre in dicIdiomas)) {
                                 inner += "<p class='";
+                               
+        
+  
+                                inner+="idioma " + idiomas[i].Nombre+"" ;
                                 if (temporada < this.Temporadas.length - 1) {
-                                    inner+="temporadaNoActual"; 
-                                }
-                                inner+=" idioma " + idiomas[i].Nombre+"'>" ;
-                                if (temporada < this.Temporadas.length - 1) {
-                                    inner += "T:" + temporada + "-";
-                                }
+                                    inner += " temporadaNoActual '>T:" + temporada + "-";
+                                }else{inner+="'>";}
                                 inner += (j + 1) + "</p>";
                                 dicIdiomas[idiomas[i].Nombre] = idiomas[i].Nombre;
                             }
